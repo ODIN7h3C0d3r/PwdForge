@@ -1,93 +1,220 @@
-# PwdForge
-
-**PwdForge** is an advanced, versatile, and interactive password manager CLI written in Go. It supports secure password and passphrase generation, batch operations, output in multiple formats, config file support, clipboard integration (stub), and interactive CLI mode. It also integrates with HaveIBeenPwned for breach checks.
+# PwdForge: Advanced Password Manager CLI
 
 ---
 
-## Features
-
-- **Password Generation**: Generate strong passwords with customizable length, character sets, and options.
-- **Passphrase Generation**: Generate memorable passphrases using a built-in wordlist.
-- **Batch Operations**: Generate passwords in bulk using batch input files (JSON/YAML per line).
-- **Output Formats**: Output passwords in plain text, JSON, CSV, or table format.
-- **Config File Support**: Use YAML or JSON config files to set default options.
-- **Clipboard Integration**: (Stub) Option to copy the first password to clipboard (integration can be restored).
-- **Interactive CLI**: Interactive mode for password generation and breach checking.
-- **Breach Check**: Check passwords against known breaches using the HaveIBeenPwned API.
-- **Enforce-All**: Ensure at least one of each selected character type in generated passwords.
-- **Custom Charset**: Use a custom character set for password generation.
+**PwdForge** is a modern, production-grade command-line password manager and generator written in Go. It empowers users, power users, and developers to generate, manage, and audit passwords and passphrases with maximum flexibility, security, and automation. PwdForge supports batch operations, config files, output in multiple formats, interactive and scripted use, and integrates with HaveIBeenPwned for breach checks.
 
 ---
 
-## Installation
+## 📋 Menu
 
-1. **Clone the repository:**
-
-   ```sh
-   git clone https://github.com/yourusername/PwdForge.git
-   cd PwdForge
-   ```
-
-2. **Build the CLI:**
-
-   ```sh
-   go build ./...
-   ```
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Normal User Guide](#normal-user-guide)
+- [Power User Guide](#power-user-guide)
+- [Developer Guide](#developer-guide)
+- [Configuration](#configuration)
+- [Batch & Automation](#batch--automation)
+- [Interactive Mode](#interactive-mode)
+- [Breach Checking](#breach-checking)
+- [Clipboard Integration](#clipboard-integration)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## Usage
+## 🚀 Features
 
-### Password Generation
+- **Secure password generation** with customizable length, charset, and rules
+- **Passphrase generation** (memorable, multi-word)
+- **Batch operations** via input files (JSON/YAML per line)
+- **Output formats**: plain, JSON, CSV, table
+- **Config file support** (YAML/JSON)
+- **Clipboard integration** (stub, see below)
+- **Interactive CLI** for guided password and breach check workflows
+- **Breach check** via HaveIBeenPwned API
+- **Enforce-all**: require at least one of each selected character type
+- **Custom charset** for advanced password policies
+- **Verbose output** with strength/entropy analysis
 
-Generate a single password (default 12 chars, all types):
+---
 
-```sh
- go run main.go generate
-```
+## ⚡ Quick Start
 
-Generate 3 passwords, 16 chars, all types, table output:
-
-```sh
- go run main.go generate --length 16 --count 3 --format table
-```
-
-Generate a passphrase (4 words):
-
-```sh
- go run main.go generate --passphrase
-```
-
-Generate a passphrase with 6 words:
+Clone and build:
 
 ```sh
- go run main.go generate --passphrase --word-count 6
+
+git clone https://github.com/ODIN7h3C0d3r/PwdForge.git
+cd PwdForge
+go build ./...
+
 ```
 
-Generate using a custom charset:
+Generate a strong password:
 
 ```sh
- go run main.go generate --length 20 --custom-charset "abc123!@#"
+
+go run main.go generate --length 16 --count 2 --format table
+
 ```
 
-### Batch Password Generation
+Check a password for breaches:
 
-Prepare a batch file (e.g., `test_batch.txt`):
+```sh
+
+go run main.go checkpwn --password "MySecret123!"
+
+```
+
+---
+
+## 👤 Normal User Guide
+
+**Generate a password:**
+
+```sh
+
+go run main.go generate
+
+```
+(Default: 12 chars, all types)
+
+**Generate a passphrase:**
+
+```sh
+
+go run main.go generate --passphrase
+
+```
+
+**Check if a password is breached:**
+
+```sh
+
+go run main.go checkpwn --password "yourpassword"
+
+```
+
+**Interactive mode:**
+
+```sh
+
+go run main.go interactive
+
+```
+(Menu-driven, no flags needed)
+
+---
+
+## ⚙️ Power User Guide
+
+**Batch password generation:**
+
+Create `test_batch.txt`:
 
 ```json
 {"length": 10, "count": 1, "uppercase": true, "lowercase": true, "digits": true, "specials": false}
 {"length": 14, "count": 2, "uppercase": true, "lowercase": true, "digits": false, "specials": true}
 ```
 
-Run batch generation:
+Run:
 
 ```sh
- go run main.go generate --input test_batch.txt --format table
+
+go run main.go generate --input test_batch.txt --format table
+
 ```
 
-### Config File Support
+**Save passwords to a file:**
 
-Create a config file (YAML or JSON):
+```sh
+
+go run main.go generate --count 5 --output mypasswords.txt
+
+```
+
+**Use a config file (YAML/JSON):**
+
+`config.yaml`:
+
+```yaml
+length: 20
+count: 3
+include_upper: true
+include_lower: true
+include_digits: true
+include_specials: true
+enforce_all: true
+```
+
+Run:
+
+```sh
+
+go run main.go generate --config config.yaml
+
+```
+
+**Custom charset:**
+
+```sh
+
+go run main.go generate --length 24 --custom-charset "abc123!@#"
+
+```
+
+**Enforce all character types:**
+
+```sh
+
+go run main.go generate --enforce-all
+
+```
+
+**Output as JSON/CSV:**
+
+```sh
+
+go run main.go generate --format json
+go run main.go generate --format csv
+
+```
+
+---
+
+## 🛠️ Developer Guide
+
+- **Extend wordlist:** Edit `defaultWordlist` in `cmd/generate.go`.
+- **Add new output formats:** Edit output section in `cmd/generate.go`.
+- **Integrate clipboard:** Replace stub in `pkg/clipboard.go` and usage sites with a Go clipboard library (e.g., `github.com/atotto/clipboard`).
+- **Add new breach sources:** Extend `internal/pwnchecker/pwncheck.go`.
+- **Testing:**
+
+```sh
+
+go test ./...
+
+```
+
+- **Build binary:**
+
+```sh
+
+go build -o pwdforge main.go
+
+```
+
+---
+
+## ⚙️ Configuration
+
+**Config file (YAML/JSON):**
+
+All CLI flags can be set in a config file. CLI flags override config.
+
+Example YAML:
 
 ```yaml
 length: 16
@@ -96,79 +223,79 @@ include_upper: true
 include_lower: true
 include_digits: true
 include_specials: true
-```
-
-Use it:
-
-```sh
- go run main.go generate --config config.yaml
-```
-
-### Breach Check
-
-Check a password against known breaches:
-
-```sh
- go run main.go checkpwn --password "yourpassword"
-```
-
-Batch breach check:
-
-```sh
- go run main.go checkpwn --input test_pwn.txt --format table
-```
-
-### Interactive CLI
-
-Start interactive mode:
-
-```sh
- go run main.go interactive
+passphrase: false
+word_count: 4
+enforce_all: false
+custom_charset: ""
 ```
 
 ---
 
-## Flags (Password Generation)
+## 📦 Batch & Automation
 
-- `--length, -l`         Password length (default: 12)
-- `--count, -c`          Number of passwords to generate (default: 1)
-- `--uppercase, -u`      Include uppercase letters (default: true)
-- `--lowercase, -w`      Include lowercase letters (default: true)
-- `--digits, -d`         Include digits (default: true)
-- `--specials, -s`       Include special characters (default: true)
-- `--exclude-similar`    Exclude similar/confusing characters
-- `--output, -o`         Save passwords to a file
-- `--verbose, -v`        Show detailed output (strength, etc.)
-- `--format`             Output format: plain, json, csv, table
-- `--custom-charset`     Custom character set for password generation
-- `--passphrase`         Generate passphrase using wordlist
-- `--word-count`         Number of words in passphrase (default: 4)
-- `--enforce-all`        Enforce at least one of each selected character type
-- `--input`              Batch input file (JSON/YAML per line)
-- `--config`             Config file (YAML/JSON)
-- `--clipboard`          Copy first password to clipboard (stub)
+- **Batch input:** Each line in the input file is a JSON or YAML object specifying password parameters.
+- **Output file:** Use `--output` to save results.
+- **Script integration:** Output in JSON/CSV for easy parsing.
 
 ---
 
-## Development & Contribution
+## 🖥️ Interactive Mode
+
+Run `go run main.go interactive` for a menu-driven experience:
+
+1. Generate Password(s)
+2. Check Password (pwned)
+3. Exit
+
+Prompts for all options, no flags needed.
+
+---
+
+## 🔎 Breach Checking
+
+- Uses HaveIBeenPwned API (k-anonymity, privacy-safe)
+- Single or batch mode supported
+- Output in plain, table, or JSON
+
+---
+
+## 📋 Clipboard Integration
+
+- Currently a stub (prints a warning)
+- To enable, add a Go clipboard library and update `pkg/clipboard.go` and usage sites
+
+---
+
+## ❓ FAQ
+
+- **Q: Is my password sent to the internet?**
+  - A: Only for breach checks, and only a hash prefix (k-anonymity, never the full password).
+- **Q: Can I use this in scripts?**
+  - A: Yes! Use `--format json` or `--format csv` for easy parsing.
+- **Q: How do I add new wordlists or charsets?**
+  - A: Edit the Go source or pass via CLI/config.
+
+---
+
+## 🤝 Contributing
 
 - PRs and issues welcome!
-- To restore clipboard integration, add a Go clipboard library and update `pkg/clipboard.go` and usage sites.
+- Please lint and test before submitting.
 
 ---
 
-## License
+## 📄 License
 
 MIT
 
 ---
 
-## Author
+## 👤 Author
 
-- [Your Name or GitHub handle]
+- [ODIN7h3C0d3r](https://github.com/ODIN7h3C0d3r)
 
 ---
 
-## Disclaimer
+## ⚠️ Disclaimer
 
 This tool is for educational and personal use. Do not use for illegal or malicious purposes. Always use strong, unique passwords for every site and service.
