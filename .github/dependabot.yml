@@ -5,7 +5,23 @@
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "gomod"
+    directory: "/"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "ODIN7h3C0d3r"
+    labels:
+      - "dependencies"
+      - "automerge"
+    assignees:
+      - "ODIN7h3C0d3r"
+    allow:
+      - dependency-type: "all"
+
+# Enable GitHub Actions for Copilot and Dependabot PRs
+# (Assumes you have workflows in .github/workflows/)
