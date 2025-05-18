@@ -1,0 +1,4 @@
+# Example batch input for password generation
+# Each line is a JSON object with parameters
+{"length": 10, "count": 1, "uppercase": true, "lowercase": true, "digits": true, "specials": false}
+{"length": 14, "count": 2, "uppercase": true, "lowercase": true, "digits": false, "specials": true}

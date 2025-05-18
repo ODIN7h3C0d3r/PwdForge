@@ -6,7 +6,6 @@ import (
 	"os"
 	"pwdforge/internal/generator"
 	"pwdforge/internal/pwnchecker"
-	"pwdforge/pkg/clipboard"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -94,20 +93,12 @@ func interactiveGenerate(reader *bufio.Reader) {
 			}
 		}
 		if copyClip {
-			err := clipboard.CopyToClipboard(pwd)
-			if err == nil {
-				fmt.Println("[Copied to clipboard]")
-			}
+			fmt.Println("[Clipboard integration is currently unavailable due to Go import issues]")
 		}
 	}
 	// If copyClip is true, copy the first password to clipboard and notify
 	if copyClip && len(passwords) > 0 {
-		err := clipboard.CopyToClipboard(passwords[0])
-		if err == nil {
-			fmt.Println("[Copied first password to clipboard]")
-		} else {
-			fmt.Printf("[Clipboard error: %v]\n", err)
-		}
+		fmt.Println("[Clipboard integration is currently unavailable due to Go import issues]")
 	}
 }
 

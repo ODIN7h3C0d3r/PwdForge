@@ -18,15 +18,16 @@ var checkpwnCmd = &cobra.Command{
 	Long:  "Uses the HaveIBeenPwned API to securely check if a password has been pwned.",
 	Run: func(cmd *cobra.Command, args []string) {
 		password, _ := cmd.Flags().GetString("password")
-
-		if strings.TrimSpace(password) == "" {
-			fmt.Fprintln(os.Stderr, "Error: Password cannot be empty.")
-			os.Exit(1)
-		}
-
-		// Read new flags to avoid unused variable errors (future logic will use them)
 		inputFile, _ := cmd.Flags().GetString("input")
 		format, _ := cmd.Flags().GetString("format")
+		if strings.TrimSpace(password) == "" && strings.TrimSpace(inputFile) == "" {
+			fmt.Fprintln(os.Stderr, "Error: Either --password or --input must be provided.")
+			os.Exit(1)
+		}
+		if strings.TrimSpace(password) != "" && strings.TrimSpace(inputFile) != "" {
+			fmt.Fprintln(os.Stderr, "Error: Only one of --password or --input should be provided.")
+			os.Exit(1)
+		}
 		var results []map[string]interface{}
 		if inputFile != "" {
 			file, err := os.Open(inputFile)
@@ -98,14 +99,9 @@ var checkpwnCmd = &cobra.Command{
 
 func init() {
 	checkpwnCmd.Flags().StringP("password", "p", "", "Password to check against breaches")
-	_ = checkpwnCmd.MarkFlagRequired("password")
-
-	// Add output format flag
+	// Removed MarkFlagRequired("password")
 	checkpwnCmd.Flags().String("format", "plain", "Output format: plain, json, table")
-	// Add batch input flag
 	checkpwnCmd.Flags().String("input", "", "Read passwords to check from a file (one per line)")
-	// Add config file flag
 	checkpwnCmd.Flags().String("config", "", "Path to config file for default options")
-
 	RootCmd.AddCommand(checkpwnCmd)
 }

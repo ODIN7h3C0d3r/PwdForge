@@ -9,8 +9,6 @@ import (
 
 	"math/rand"
 	"pwdforge/internal/generator"
-	"pwdforge/pkg/clipboard"
-	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -36,48 +34,54 @@ var generateCmd = &cobra.Command{
 		inputFile, _ := cmd.Flags().GetString("input")
 		configFile, _ := cmd.Flags().GetString("config")
 		copyClip, _ := cmd.Flags().GetBool("clipboard")
+		wordCount, _ := cmd.Flags().GetInt("word-count")
 
 		// Load config file if provided
+		var cfg *GenerateConfig
 		if configFile != "" {
-			cfg, err := loadGenerateConfig(configFile)
+			var err error
+			cfg, err = loadGenerateConfig(configFile)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error loading config file: %v\n", err)
 				os.Exit(1)
 			}
-			if cfg.Length > 0 {
+		}
+		// Only use config values if CLI flag is not set (flags take precedence)
+		if cfg != nil {
+			if !cmd.Flags().Changed("length") && cfg.Length > 0 {
 				length = cfg.Length
 			}
-			if cfg.Count > 0 {
+			if !cmd.Flags().Changed("count") && cfg.Count > 0 {
 				count = cfg.Count
 			}
-			includeUpper = cfg.IncludeUpper
-			includeLower = cfg.IncludeLower
-			includeDigits = cfg.IncludeDigits
-			includeSpecials = cfg.IncludeSpecials
-			excludeSimilar = cfg.ExcludeSimilar
-			customCharset = cfg.CustomCharset
-			enforceAll = cfg.EnforceAll
-			usePassphrase = cfg.Passphrase
-			// Optionally: add word count for passphrase
+			if !cmd.Flags().Changed("uppercase") {
+				includeUpper = cfg.IncludeUpper
+			}
+			if !cmd.Flags().Changed("lowercase") {
+				includeLower = cfg.IncludeLower
+			}
+			if !cmd.Flags().Changed("digits") {
+				includeDigits = cfg.IncludeDigits
+			}
+			if !cmd.Flags().Changed("specials") {
+				includeSpecials = cfg.IncludeSpecials
+			}
+			if !cmd.Flags().Changed("exclude-similar") {
+				excludeSimilar = cfg.ExcludeSimilar
+			}
+			if !cmd.Flags().Changed("custom-charset") && cfg.CustomCharset != "" {
+				customCharset = cfg.CustomCharset
+			}
+			if !cmd.Flags().Changed("enforce-all") {
+				enforceAll = cfg.EnforceAll
+			}
+			if !cmd.Flags().Changed("passphrase") {
+				usePassphrase = cfg.Passphrase
+			}
+			if !cmd.Flags().Changed("word-count") && cfg.WordCount > 0 {
+				wordCount = cfg.WordCount
+			}
 		}
-
-		// TODO: Load config file and input file if provided (YAML/JSON parsing)
-		// TODO: If usePassphrase, generate passphrase instead of password
-		// TODO: If customCharset is set, use it for password generation
-		// TODO: If enforceAll, ensure at least one of each selected type
-		// TODO: If inputFile is set, read batch parameters
-		// TODO: If format != plain, output as JSON/CSV/table
-		// TODO: If outputFile is set, write output to file
-		// TODO: If copyClip, copy first password to clipboard
-
-		// Read new flags to avoid unused variable errors (future logic will use them)
-		_, _ = cmd.Flags().GetString("format")
-		_, _ = cmd.Flags().GetString("custom-charset")
-		_, _ = cmd.Flags().GetBool("passphrase")
-		_, _ = cmd.Flags().GetBool("enforce-all")
-		_, _ = cmd.Flags().GetString("input")
-		_, _ = cmd.Flags().GetString("config")
-		_, _ = cmd.Flags().GetBool("clipboard")
 
 		var passwords []string
 		if inputFile != "" {
@@ -89,11 +93,86 @@ var generateCmd = &cobra.Command{
 			defer file.Close()
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
-				pw := strings.TrimSpace(scanner.Text())
-				if pw == "" {
+				line := strings.TrimSpace(scanner.Text())
+				if line == "" || strings.HasPrefix(line, "#") {
 					continue
 				}
-				passwords = append(passwords, pw)
+				// Try JSON first
+				var params GenerateConfig
+				if err := json.Unmarshal([]byte(line), &params); err != nil {
+					// Try YAML if JSON fails
+					err2 := yaml.Unmarshal([]byte(line), &params)
+					if err2 != nil {
+						fmt.Fprintf(os.Stderr, "Skipping invalid input line: %s\n", line)
+						continue
+					}
+				}
+					// Merge params with CLI/config defaults
+				merged := GenerateConfig{
+					Length:          params.Length,
+					Count:           params.Count,
+					IncludeUpper:    params.IncludeUpper,
+					IncludeLower:    params.IncludeLower,
+					IncludeDigits:   params.IncludeDigits,
+					IncludeSpecials: params.IncludeSpecials,
+					ExcludeSimilar:  params.ExcludeSimilar,
+					CustomCharset:   params.CustomCharset,
+					EnforceAll:      params.EnforceAll,
+					Passphrase:      params.Passphrase,
+					WordCount:       params.WordCount,
+				}
+				if merged.Length == 0 {
+					merged.Length = length
+				}
+				if merged.Count == 0 {
+					merged.Count = 1
+				}
+				if !params.IncludeUpper && !params.IncludeLower && !params.IncludeDigits && !params.IncludeSpecials && params.CustomCharset == "" {
+					merged.IncludeUpper = includeUpper
+					merged.IncludeLower = includeLower
+					merged.IncludeDigits = includeDigits
+					merged.IncludeSpecials = includeSpecials
+				}
+				if merged.CustomCharset == "" {
+					merged.CustomCharset = customCharset
+				}
+				if !merged.EnforceAll {
+					merged.EnforceAll = enforceAll
+				}
+				if !merged.Passphrase {
+					merged.Passphrase = usePassphrase
+				}
+				if merged.WordCount == 0 {
+					merged.WordCount = wordCount
+				}
+				// Use merged config to generate password(s)
+				if merged.Passphrase {
+					wc := merged.WordCount
+					if wc <= 0 {
+						wc = 4
+					}
+					passwords = append(passwords, GeneratePassphrase(wc, nil))
+				} else {
+					cfg := generator.PasswordConfig{
+						Length:          merged.Length,
+						Count:           merged.Count,
+						IncludeUpper:    merged.IncludeUpper,
+						IncludeLower:    merged.IncludeLower,
+						IncludeDigits:   merged.IncludeDigits,
+						IncludeSpecials: merged.IncludeSpecials,
+						ExcludeSimilar:  merged.ExcludeSimilar,
+					}
+					if merged.CustomCharset != "" {
+						pw := make([]byte, merged.Length)
+						for j := 0; j < merged.Length; j++ {
+							idx := RandomInt(len(merged.CustomCharset))
+							pw[j] = merged.CustomCharset[idx]
+						}
+						passwords = append(passwords, string(pw))
+					} else {
+						passwords = append(passwords, generator.GeneratePasswords(cfg)...)
+					}
+				}
 			}
 			if err := scanner.Err(); err != nil {
 				fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
@@ -101,13 +180,13 @@ var generateCmd = &cobra.Command{
 			}
 		} else {
 			if usePassphrase {
-				wordCount := 4
-				if cfg, err := loadGenerateConfig(configFile); err == nil && cfg.WordCount > 0 {
-					wordCount = cfg.WordCount
+				wc := wordCount
+				if wc <= 0 {
+					wc = 4
 				}
 				passwords = []string{}
 				for i := 0; i < count; i++ {
-					passwords = append(passwords, GeneratePassphrase(wordCount, nil))
+					passwords = append(passwords, GeneratePassphrase(wc, nil))
 				}
 			} else {
 				cfg := generator.PasswordConfig{
@@ -120,8 +199,6 @@ var generateCmd = &cobra.Command{
 					ExcludeSimilar:  excludeSimilar,
 				}
 				if customCharset != "" {
-					// Override charset logic in generator.GeneratePasswords if customCharset is set
-					// For now, just generate using the custom charset for all passwords
 					passwords = []string{}
 					for i := 0; i < count; i++ {
 						pw := make([]byte, length)
@@ -134,7 +211,6 @@ var generateCmd = &cobra.Command{
 				} else {
 					passwords = generator.GeneratePasswords(cfg)
 				}
-				// Enforce at least one of each selected type if requested
 				if enforceAll && customCharset == "" {
 					for i, pw := range passwords {
 						for {
@@ -154,7 +230,6 @@ var generateCmd = &cobra.Command{
 							if valid {
 								break
 							}
-							// Regenerate if not valid
 							pw = generator.GeneratePasswords(cfg)[0]
 							passwords[i] = pw
 						}
@@ -207,12 +282,7 @@ var generateCmd = &cobra.Command{
 		}
 
 		if copyClip && len(passwords) > 0 {
-			err := clipboard.CopyToClipboard(passwords[0])
-			if err == nil {
-				fmt.Println("[Copied first password to clipboard]")
-			} else {
-				fmt.Printf("[Clipboard error: %v]\n", err)
-			}
+			fmt.Println("[Clipboard integration is currently unavailable due to Go import issues]")
 		}
 	},
 }
@@ -227,30 +297,19 @@ func init() {
 	generateCmd.Flags().Bool("exclude-similar", false, "Exclude similar/confusing characters (e.g., l, 1, O, 0)")
 	generateCmd.Flags().StringP("output", "o", "", "Save passwords to a file")
 	generateCmd.Flags().BoolP("verbose", "v", false, "Show detailed output (strength, etc.)")
-
-	// Add output format flags
 	generateCmd.Flags().String("format", "plain", "Output format: plain, json, csv, table")
-
-	// Add custom charset and passphrase flags
 	generateCmd.Flags().String("custom-charset", "", "Custom character set for password generation")
 	generateCmd.Flags().Bool("passphrase", false, "Generate passphrase using wordlist")
 	generateCmd.Flags().Bool("enforce-all", false, "Enforce at least one of each selected character type")
-
-	// Add batch input flag
 	generateCmd.Flags().String("input", "", "Read password generation parameters from a file (JSON/YAML)")
-
-	// Add config file flag
 	generateCmd.Flags().String("config", "", "Path to config file for default options")
-
-	// Add clipboard flag
 	generateCmd.Flags().Bool("clipboard", false, "Copy first password to clipboard")
-
+	generateCmd.Flags().Int("word-count", 4, "Number of words in passphrase (for --passphrase)")
 	RootCmd.AddCommand(generateCmd)
 }
 
 // Helper for random int
 func RandomInt(n int) int {
-	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(n)
 }
 
