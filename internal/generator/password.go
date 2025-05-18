@@ -2,9 +2,9 @@ package generator
 
 import (
     "crypto/rand"
-    "encoding/binary"
     "io"
-    "math"
+    "math/rand"   // For rand.Seed
+    "time"        // For time.Now()
     "os"
 )
 
