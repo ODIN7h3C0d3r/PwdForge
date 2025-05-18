@@ -3,7 +3,7 @@ package generator
 import (
     "crypto/rand"
     "io"
-    "math/rand"   // For rand.Seed
+    mrand "math/rand"   // For rand.Seed
     "time"        // For time.Now()
     "os"
 )
@@ -51,7 +51,7 @@ func GeneratePasswords(config PasswordConfig) []string {
         panic("no character set selected for password generation")
     }
 
-    rand.Seed(time.Now().UnixNano())
+    mrand.Seed(time.Now().UnixNano())
 
     var passwords []string
     for i := 0; i < config.Count; i++ {
