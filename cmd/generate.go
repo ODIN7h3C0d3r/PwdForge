@@ -107,7 +107,7 @@ var generateCmd = &cobra.Command{
 						continue
 					}
 				}
-					// Merge params with CLI/config defaults
+				// Merge params with CLI/config defaults
 				merged := GenerateConfig{
 					Length:          params.Length,
 					Count:           params.Count,
